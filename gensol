@@ -121,15 +121,16 @@ def add_source(file, source, target):
     pro = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE)
     pro.wait()
     dep = re.sub('.*:', '', pro.stdout.readline().decode('utf-8').strip())
-    file.write('%s:%s\n' % (out, dep))
+    file.write('%s:%s' % (out, dep))
     for i in pro.stdout.readlines():
-        file.write(i.decode('utf-8') + '\n')
+        file.write(i.decode('utf-8'))
+    if obj_dir != '':
+        file.write('\t@mkdir -p %s\n' % obj_dir)
     file.write('''\
-\t@mkdir -p %s
 \t@echo "Compile $@"
 \t@%s -c -o $@ $< %s
 
-''' % (obj_dir, compiler, flag))
+''' % (compiler, flag))
 
 class DataHandler:
     """Handle solutions data"""
@@ -216,7 +217,7 @@ def parse_target(data, name, targets, compilers):
         'type': 'excutable',
         'lang': 'c++',
         'prefix': 'bin',
-        'output': name
+        'output': '.build/' + name
     }
     actions = {
         '=': act_add,
