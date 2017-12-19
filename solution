@@ -1,0 +1,23 @@
+target demolib
+	compiler = default
+	source + src/lib/*.c
+	cflags = -Ofast
+	type = archive
+	output = libdemo.a
+done
+
+target demo
+	install
+	compiler = default
+	require = demolib
+	source + src/*.c
+	cflags = -Ofast
+	output = demo
+	link = demolib
+done
+
+target all
+	phony
+	default
+	require = demo
+done

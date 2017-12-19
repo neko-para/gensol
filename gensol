@@ -1,0 +1,369 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""Generate solution"""
+
+import re
+import os
+import shlex
+import subprocess
+
+def is_empty_line(line):
+    """Check if line is an empty line"""
+    return re.match(r'^\s*$', line) is not None
+
+def combine_path(first_path, second_path):
+    """Combine path using /"""
+    if first_path == '':
+        return second_path
+    else:
+        return os.path.normpath('%s/%s' % (first_path, second_path))
+
+def enum_file(cur_dir, path, func_compile, func_do, ret=None):
+    """Enum file and add to/remove from ret"""
+    if ret is None:
+        ret = []
+    match = func_compile(path[0])
+    lstdir = cur_dir
+    if lstdir == '':
+        lstdir = '.'
+    if len(path) == 1:
+        for i in [x for x in os.listdir(lstdir) if os.path.isfile(combine_path(cur_dir, x))]:
+            if match.match(i):
+                ret = func_do(ret, combine_path(cur_dir, i))
+    else:
+        for i in [x for x in os.listdir(lstdir) if os.path.isdir(combine_path(cur_dir, x))]:
+            if match.match(i):
+                ret = enum_file(combine_path(cur_dir, i), path[1:], func_compile, func_do, ret)
+    return ret
+
+def add_to_list(lst, element):
+    """Append element to lst and return"""
+    lst.append(element)
+    return lst
+
+def erase_from_list(lst, element):
+    """Erase element if exist from lst and return"""
+    if element in lst:
+        lst.remove(element)
+    return lst
+
+def compile_laegacy_regex(reg):
+    """Make reg to standard regex and compile"""
+    reg = re.sub(r'([\.\+\{\}\[\]\(\)])', r'\\\1', reg)
+    reg = re.sub(r'\*', r'.*', reg)
+    reg = re.sub(r'\?', r'.', reg)
+    return re.compile(reg)
+
+def enum_file_regex_add(cur_dir, path):
+    """Add file in dir to ret with path using regex"""
+    return enum_file(cur_dir, path, re.compile, add_to_list)
+
+def enum_file_legacy_add(cur_dir, path):
+    """Add file in dir to ret with path using legacy"""
+    return enum_file(cur_dir, path, compile_laegacy_regex, add_to_list)
+
+def enum_file_regex_erase(cur_dir, path, ret):
+    """Erase file in dir from ret with path using regex"""
+    if ret is None:
+        ret = []
+    return enum_file(cur_dir, path, re.compile, erase_from_list, ret)
+
+def enum_file_legacy_erase(cur_dir, path, ret):
+    """Erase file in dir from ret with path using legacy"""
+    if ret is None:
+        ret = []
+    return enum_file(cur_dir, path, compile_laegacy_regex, erase_from_list, ret)
+
+def list_to_string(lst, fun=lambda x: x):
+    """Make list to string"""
+    lst_str = ''
+    for i in lst:
+        lst_str = lst_str + ' ' + fun(i)
+    return lst_str.strip()
+
+def touch_dir(path, file, dirs):
+    """Touch path and make dir if needed"""
+    path = os.path.normpath(path)
+    while path not in dirs:
+        dirs.add(path)
+        file.write('%s: %s\n\t@mkdir -p %s\n\n' % (path, os.path.dirname(path), path))
+        path = os.path.dirname(path)
+
+def read_file(filename):
+    """Load file and parse include"""
+    file_obj = open(filename)
+    data = []
+    for i in file_obj.readlines():
+        i = i.strip()
+        match_ret = re.match(r'^include\s+([=+:])\s+([\S\s]*)', i)
+        if match_ret:
+            if match_ret.group(1) == '=':
+                data.extend(read_file(match_ret.group(2)))
+            elif match_ret.group(1) == '+':
+                files = enum_file_legacy_add('', match_ret.group(2).split('/'))
+                for j in files:
+                    data.extend(read_file(j))
+            elif match_ret.group(1) == ':':
+                files = enum_file_regex_add('', match_ret.group(2).split('/'))
+                for j in files:
+                    data.extend(read_file(j))
+        else:
+            data.append(i)
+    data = [x for x in data if x != '']
+    return data
+
+def add_source(file, dirfile, source, target, dirs):
+    """Add source"""
+    suf = os.path.splitext(source)[1][1:]
+    if suf in ('cpp', 'cc', 'cxx', 'C'):
+        compiler = target['compiler'].get('g++')
+        flag = target['cxxflags']
+    elif suf == 'c':
+        compiler = target['compiler'].get('gcc')
+        flag = target['cflags']
+    src_dir = os.path.dirname(source)
+    obj_dir = combine_path('.build', src_dir)
+    touch_dir(obj_dir, dirfile, dirs)
+    out = combine_path('.build', source + '.o')
+    cmd = shlex.split('%s -MM %s %s' % (compiler, source, flag))
+    pro = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE)
+    pro.wait()
+    dep = re.sub('.*:', '', pro.stdout.readline().decode('utf-8').strip())
+    file.write('''\
+%s:%s
+\t@if [ ! -d %s ]; then $(MAKE) -f Makefile.dir %s --no-print-directory; fi
+\t@echo "Compile $@"
+\t@%s -c -o $@ $< %s
+
+''' % (out, dep, obj_dir, obj_dir, compiler, flag))
+
+class DataHandler:
+    """Handle solutions data"""
+    def __init__(self, dat):
+        self._data = dat
+        self._pos = 0
+    def more(self):
+        """Check if not finish"""
+        return self._pos < len(self._data)
+    def next(self):
+        """Get next line"""
+        assert self._pos < len(self._data)
+        line = self._data[self._pos]
+        self._pos = self._pos + 1
+        return line
+
+_GERERAL_MATCH = re.compile(r'^\s*(\S+)(\s+([=+:\-/])\s+([\S\s]*?)\s*)?$')
+_START_MATCH = re.compile(r'^\s*(\S+)\s+([\S\s]*)$')
+
+class Compiler:
+    """Handle a set of compilers"""
+    def __init__(self):
+        self._set = {
+            'gcc': 'gcc',
+            'g++': 'g++',
+            'ar': 'ar'
+        }
+    def set_prefix(self, pref):
+        """Set compilers with prefix"""
+        self._set['gcc'] = '%sgcc' % pref
+        self._set['g++'] = '%sg++' % pref
+        self._set['ar'] = '%sar' % pref
+    def set(self, act, val):
+        """Set specify compiler"""
+        self._set[act] = val
+    def get(self, act):
+        """Get specify compiler"""
+        return self._set[act]
+
+def parse_compiler(data):
+    """Parse a compiler from data"""
+    compiler = Compiler()
+    while data.more():
+        line = data.next()
+        if line == 'done':
+            break
+        match_ret = _GERERAL_MATCH.match(line)
+        if match_ret:
+            key = match_ret.group(1)
+            if key == 'prefix':
+                val = match_ret.group(4)
+                compiler.set_prefix(val)
+            elif key in ('gcc', 'g++', 'ar'):
+                compiler.set(key, match_ret.group(4))
+    return compiler
+
+def parse_target(data, name, targets, compilers):
+    """Parse target name from data"""
+    target = {
+        'compiler': 'default',
+        'source': [],
+        'depend': [],
+        'link': [],
+        'flag': [],
+        'cflags': '',
+        'cxxflags': '',
+        'ldflags': '',
+        'type': 'excutable',
+        'lang': 'c++',
+        'prefix': 'bin',
+        'output': name
+    }
+    while data.more():
+        line = data.next()
+        if line == 'done':
+            break
+        match_ret = _GERERAL_MATCH.match(line)
+        if match_ret:
+            key = match_ret.group(1)
+            if key in ('default', 'phony', 'install'):
+                target['flag'].append(key)
+            elif key in ('depend', 'link'):
+                target[key].append(match_ret.group(4))
+            elif key == 'require':
+                target['depend'].append(targets[match_ret.group(4)]['output'])
+            elif key in ('compiler', 'type'):
+                target[key] = match_ret.group(4)
+            elif key == 'output':
+                target['output'] = '.build/' + match_ret.group(4)
+            elif key in ('cflags', 'cxxflags', 'ldflags'):
+                target[key] = '%s %s' % (target[key], match_ret.group(4))
+            elif key == 'source':
+                act = match_ret.group(3)
+                if act == '=':
+                    target['source'].append(match_ret.group(4))
+                elif act == '+':
+                    target['source'].extend(enum_file_legacy_add(
+                        '', match_ret.group(4).split('/')
+                    ))
+                elif act == ':':
+                    target['source'].extend(enum_file_regex_add(
+                        '', match_ret.group(4).split('/')
+                    ))
+                elif act == '-':
+                    target['source'] = enum_file_legacy_erase(
+                        '', match_ret.group(4).split('/'), target['source']
+                    )
+                elif act == '/':
+                    target['source'] = enum_file_regex_erase(
+                        '', match_ret.group(4).split('/'), target['source']
+                    )
+    target['compiler'] = compilers[target['compiler']]
+    if 'install' in target['flag']:
+        if target['type'] == 'excutable':
+            target['prefix'] = 'bin'
+        elif target['type'] in ('library', 'archive'):
+            target['prefix'] = 'lib'
+    return target
+
+def main():
+    """main function"""
+    data = DataHandler(read_file('solution'))
+    compilers = {
+        'default': Compiler()
+    }
+    targets = {}
+    dirs = set(['.build', '.inst'])
+    sources = set([])
+    while data.more():
+        line = data.next()
+        match_ret = _START_MATCH.match(line)
+        if match_ret:
+            module = match_ret.group(1)
+            if module == 'compiler':
+                name = match_ret.group(2)
+                compilers[name] = parse_compiler(data)
+            elif module == 'target':
+                name = match_ret.group(2)
+                targets[name] = parse_target(data, name, targets, compilers)
+    makefile = open('Makefile', mode='w')
+    makefile_dir = open('Makefile.dir', mode='w')
+    makefile.write('''\
+default: %s
+.PHONY: default
+
+clean:
+\t@echo "Removing .build .inst"
+\t@-rm -rf .build .inst
+.PHONY: clean
+
+rebuild: clean default
+.PHONY: rebuild
+
+localinst: %s
+.PHONY: localinst
+
+''' % (
+    list_to_string([targets[x]['output'] for x in targets if 'default' in targets[x]['flag']]),
+    list_to_string(['LOCALINST%s' % targets[x]['output'] for x in targets if 'install' in targets[x]['flag']])
+    ))
+    makefile_dir.write('''\
+.build:
+\t@mkdir -p .build
+
+.inst:
+\t@mkdir -p .inst
+
+''')
+    for i in targets:
+        target = targets[i]
+        if 'phony' in target['flag']:
+            makefile.write('''\
+%s: %s
+.PHONY: %s
+
+''' % (target['output'], list_to_string(target['depend']), target['output']))
+        else:
+            touch_dir(os.path.dirname(target['output']), makefile_dir, dirs)
+            src_lst = list_to_string(target['source'], lambda x: '.build/%s.o' % x)
+            makefile.write('%s: %s %s' % (
+                target['output'], list_to_string(target['depend']), src_lst
+            ))
+            makefile.write('''
+\t@if [ ! -d %s ]; then $(MAKE) -f Makefile.dir %s --no-print-directory; fi
+''' % (
+    os.path.dirname(target['output']), os.path.dirname(target['output'])
+))
+            link_compiler = target['compiler'].get('g++')
+            for j in target['link']:
+                target['ldflags'] = ''.join([target['ldflags'], ' ', targets[j]['output']])
+            if target['lang'] == 'c':
+                link_compiler = target['compiler'].get('gcc')
+            elif target['lang'] == 'c++':
+                link_compiler = target['compiler'].get('g++')
+            if target['type'] == 'excutable':
+                makefile.write('''\
+\t@echo "Link excutable $@"
+\t@%s -o $@ %s %s
+''' % (link_compiler, src_lst, target['ldflags']))
+            elif target['type'] == 'library':
+                makefile.write('''\
+\t@echo "Link library $@"
+\t@%s -shared -o $@ %s %s
+''' % (link_compiler, src_lst, target['ldflags']))
+            elif target['type'] == 'archive':
+                makefile.write('''\
+\t@echo "Link archive $@"
+\t@%s rc $@ %s
+''' % (target['compiler'].get('ar'), src_lst))
+            makefile.write('\n')
+            for j in target['source']:
+                if j not in sources:
+                    add_source(makefile, makefile_dir, j, target, dirs)
+                    sources.add(j)
+            if 'install' in target['flag']:
+                makefile.write('''\
+LOCALINST%s: %s
+\t@if [ ! -d .inst/%s ]; then $(MAKE) -f Makefile.dir .inst/%s --no-print-directory; fi
+\t@echo "Installing %s to .inst/%s/%s"
+\t@cp %s .inst/%s/%s
+
+''' % (
+    target['output'], target['output'],
+    target['prefix'], target['prefix'],
+    target['output'], target['prefix'], target['output'][7:],
+    target['output'], target['prefix'], target['output'][7:]
+    ))
+                touch_dir('.inst/%s' % target['prefix'], makefile_dir, dirs)
+
+main()
