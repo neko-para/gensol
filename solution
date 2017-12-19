@@ -1,6 +1,8 @@
 target demolib
+	install
 	compiler = default
 	source + src/lib/*.c
+	insthdr + src/lib/*.h
 	cflags = -Ofast
 	type = archive
 	output = libdemo.a
@@ -8,6 +10,7 @@ done
 
 target demo
 	install
+	default
 	compiler = default
 	require = demolib
 	source + src/*.c

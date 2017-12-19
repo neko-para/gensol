@@ -82,14 +82,6 @@ def list_to_string(lst, fun=lambda x: x):
         lst_str = lst_str + ' ' + fun(i)
     return lst_str.strip()
 
-def touch_dir(path, file, dirs):
-    """Touch path and make dir if needed"""
-    path = os.path.normpath(path)
-    while path not in dirs:
-        dirs.add(path)
-        file.write('%s: %s\n\t@mkdir -p %s\n\n' % (path, os.path.dirname(path), path))
-        path = os.path.dirname(path)
-
 def read_file(filename):
     """Load file and parse include"""
     file_obj = open(filename)
@@ -113,7 +105,7 @@ def read_file(filename):
     data = [x for x in data if x != '']
     return data
 
-def add_source(file, dirfile, source, target, dirs):
+def add_source(file, source, target):
     """Add source"""
     suf = os.path.splitext(source)[1][1:]
     if suf in ('cpp', 'cc', 'cxx', 'C'):
@@ -124,7 +116,6 @@ def add_source(file, dirfile, source, target, dirs):
         flag = target['cflags']
     src_dir = os.path.dirname(source)
     obj_dir = combine_path('.build', src_dir)
-    touch_dir(obj_dir, dirfile, dirs)
     out = combine_path('.build', source + '.o')
     cmd = shlex.split('%s -MM %s %s' % (compiler, source, flag))
     pro = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE)
@@ -132,11 +123,11 @@ def add_source(file, dirfile, source, target, dirs):
     dep = re.sub('.*:', '', pro.stdout.readline().decode('utf-8').strip())
     file.write('''\
 %s:%s
-\t@if [ ! -d %s ]; then $(MAKE) -f Makefile.dir %s --no-print-directory; fi
+\t@mkdir -p %s
 \t@echo "Compile $@"
 \t@%s -c -o $@ $< %s
 
-''' % (out, dep, obj_dir, obj_dir, compiler, flag))
+''' % (out, dep, obj_dir, compiler, flag))
 
 class DataHandler:
     """Handle solutions data"""
@@ -193,11 +184,27 @@ def parse_compiler(data):
                 compiler.set(key, match_ret.group(4))
     return compiler
 
+def act_add(path, srcs):
+    """act of ="""
+    srcs.append(path)
+    return srcs
+
+def act_add_legacy(path, srcs):
+    """act of +"""
+    srcs.extend(enum_file_legacy_add('', path.split('/')))
+    return srcs
+
+def act_add_regex(path, srcs):
+    """act of :"""
+    srcs.extend(enum_file_regex_add('', path.split('/')))
+    return srcs
+
 def parse_target(data, name, targets, compilers):
     """Parse target name from data"""
     target = {
         'compiler': 'default',
         'source': [],
+        'insthdr': [],
         'depend': [],
         'link': [],
         'flag': [],
@@ -208,6 +215,13 @@ def parse_target(data, name, targets, compilers):
         'lang': 'c++',
         'prefix': 'bin',
         'output': name
+    }
+    actions = {
+        '=': act_add,
+        '+': act_add_legacy,
+        ':': act_add_regex,
+        '-': lambda path, srcs: enum_file_legacy_erase('', path.split('/'), srcs),
+        '/': lambda path, srcs: enum_file_regex_erase('', path.split('/'), srcs)
     }
     while data.more():
         line = data.next()
@@ -228,26 +242,8 @@ def parse_target(data, name, targets, compilers):
                 target['output'] = '.build/' + match_ret.group(4)
             elif key in ('cflags', 'cxxflags', 'ldflags'):
                 target[key] = '%s %s' % (target[key], match_ret.group(4))
-            elif key == 'source':
-                act = match_ret.group(3)
-                if act == '=':
-                    target['source'].append(match_ret.group(4))
-                elif act == '+':
-                    target['source'].extend(enum_file_legacy_add(
-                        '', match_ret.group(4).split('/')
-                    ))
-                elif act == ':':
-                    target['source'].extend(enum_file_regex_add(
-                        '', match_ret.group(4).split('/')
-                    ))
-                elif act == '-':
-                    target['source'] = enum_file_legacy_erase(
-                        '', match_ret.group(4).split('/'), target['source']
-                    )
-                elif act == '/':
-                    target['source'] = enum_file_regex_erase(
-                        '', match_ret.group(4).split('/'), target['source']
-                    )
+            elif key in ('source', 'insthdr'):
+                target[key] = actions[match_ret.group(3)](match_ret.group(4), target[key])
     target['compiler'] = compilers[target['compiler']]
     if 'install' in target['flag']:
         if target['type'] == 'excutable':
@@ -263,7 +259,6 @@ def main():
         'default': Compiler()
     }
     targets = {}
-    dirs = set(['.build', '.inst'])
     sources = set([])
     while data.more():
         line = data.next()
@@ -277,7 +272,6 @@ def main():
                 name = match_ret.group(2)
                 targets[name] = parse_target(data, name, targets, compilers)
     makefile = open('Makefile', mode='w')
-    makefile_dir = open('Makefile.dir', mode='w')
     makefile.write('''\
 default: %s
 .PHONY: default
@@ -297,14 +291,6 @@ localinst: %s
     list_to_string([targets[x]['output'] for x in targets if 'default' in targets[x]['flag']]),
     list_to_string(['LOCALINST%s' % targets[x]['output'] for x in targets if 'install' in targets[x]['flag']])
     ))
-    makefile_dir.write('''\
-.build:
-\t@mkdir -p .build
-
-.inst:
-\t@mkdir -p .inst
-
-''')
     for i in targets:
         target = targets[i]
         if 'phony' in target['flag']:
@@ -314,16 +300,11 @@ localinst: %s
 
 ''' % (target['output'], list_to_string(target['depend']), target['output']))
         else:
-            touch_dir(os.path.dirname(target['output']), makefile_dir, dirs)
             src_lst = list_to_string(target['source'], lambda x: '.build/%s.o' % x)
             makefile.write('%s: %s %s' % (
                 target['output'], list_to_string(target['depend']), src_lst
             ))
-            makefile.write('''
-\t@if [ ! -d %s ]; then $(MAKE) -f Makefile.dir %s --no-print-directory; fi
-''' % (
-    os.path.dirname(target['output']), os.path.dirname(target['output'])
-))
+            makefile.write('\n\t@mkdir -p %s\n' % os.path.dirname(target['output']))
             link_compiler = target['compiler'].get('g++')
             for j in target['link']:
                 target['ldflags'] = ''.join([target['ldflags'], ' ', targets[j]['output']])
@@ -349,21 +330,29 @@ localinst: %s
             makefile.write('\n')
             for j in target['source']:
                 if j not in sources:
-                    add_source(makefile, makefile_dir, j, target, dirs)
+                    add_source(makefile, j, target)
                     sources.add(j)
             if 'install' in target['flag']:
                 makefile.write('''\
 LOCALINST%s: %s
-\t@if [ ! -d .inst/%s ]; then $(MAKE) -f Makefile.dir .inst/%s --no-print-directory; fi
+\t@mkdir -p .inst/%s
 \t@echo "Installing %s to .inst/%s/%s"
 \t@cp %s .inst/%s/%s
-
 ''' % (
     target['output'], target['output'],
-    target['prefix'], target['prefix'],
-    target['output'], target['prefix'], target['output'][7:],
-    target['output'], target['prefix'], target['output'][7:]
+    target['prefix'],
+    target['output'], target['prefix'], os.path.basename(target['output']),
+    target['output'], target['prefix'], os.path.basename(target['output'])
     ))
-                touch_dir('.inst/%s' % target['prefix'], makefile_dir, dirs)
+                for j in target['insthdr']:
+                    makefile.write('''\
+\t@mkdir -p .inst/include
+\t@echo "Installing %s to .inst/include/%s"
+\t@cp %s .inst/include/%s
+''' % (
+    j, os.path.basename(j),
+    j, os.path.basename(j)
+    ))
+                makefile.write('\n')
 
 main()
