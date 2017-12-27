@@ -1,26 +1,27 @@
-target demolib
+lang c++
+target libgensol
+	type archive
+	debug true
 	install
-	compiler = default
-	source + src/lib/*.c
-	insthdr + src/lib/*.h
-	cflags = -Ofast
-	type = archive
-	output = libdemo.a
-done
-
-target demo
+		inst_inc @include/gensol.h
+		inst_lib .output/libgensol.a
+	optimize fast
+	std c++11
+	warning all
+	warning extra
+	include @include
+	source @src/gensol.cpp
+target gensol
+	type excutable
+	debug true
 	install
-	default
-	compiler = default
-	require = demolib
-	source + src/*.c
-	cflags = -Ofast
-	output = demo
-	link = demolib
-done
-
-target all
-	phony
-	default
-	require = demo
-done
+		inst_bin .output/gensol
+	depend libgensol
+	optimize fast
+	std c++11
+	warning all
+	warning extra
+	library .output
+	link gensol
+	include @include
+	source @src/main.cpp

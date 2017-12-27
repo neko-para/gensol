@@ -1,0 +1,23 @@
+#!/bin/sh
+PREFIX=/usr/local
+echo -n "Install path (default /usr/local):"
+read path
+if [ -n "$path" ]; then
+	mkdir -p "$path";
+	PREFIX=$path
+fi
+echo > gensol "#!/bin/sh"
+echo >> gensol "SRC_DIR=$PREFIX/share/gensol"
+echo >> gensol "SOL_FILE=\"solution\";"
+echo >> gensol "if [ -n \"\$1\" ]; then"
+echo >> gensol "\tif [ -d \"\$1\" ]; then"
+echo >> gensol "\t\tSOL_FILE=\"\$1/solution\";"
+echo >> gensol "\telse"
+echo >> gensol "\t\tSOL_FILE=\"\$1\";"
+echo >> gensol "\tfi"
+echo >> gensol "fi"
+echo >> gensol "exec lua \$SRC_DIR/gensol.lua \"\$SOL_FILE\" \"\`dirname \$SOL_FILE\`/\""
+sudo mkdir -p "$PREFIX/bin"
+sudo install -m 0755 gensol "$PREFIX/bin/gensol"
+sudo mkdir -p "$PREFIX/share/gensol"
+sudo install -m 0644 gensol.lua "$PREFIX/share/gensol/gensol.lua"
