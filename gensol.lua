@@ -111,7 +111,7 @@ function expPath(str)
 end
 Makefile = io.open("Makefile", "w")
 Makefile:write("PREFIX=/usr/local\n")
-for k, v in pairs(node.var) do
+for k, v in pairs(node.var or {}) do
 	if k ~= "__key" and k ~= "__value" then
 		Makefile:write(string.format("%s=%s\n", k, v.__value))
 	end
