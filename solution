@@ -13,6 +13,7 @@ target libgensol
 	warning extra
 	include @include
 	source @src/gensol.cpp
+	define TEST=123
 target gensol
 	type excutable
 	default true

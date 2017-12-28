@@ -1,10 +1,10 @@
 PREFIX=/usr/local
 INST_PREFIX=/usr/local
 default: gensol
-libgensol/src/gensol.cpp.o: $(shell $(CXX) -MM ./src/gensol.cpp -std=c++11 -I./include | tr '\n' ' ' | tr '\\' ' ' | perl -pe 's/.*://')
+libgensol/src/gensol.cpp.o: $(shell $(CXX) -MM ./src/gensol.cpp -std=c++11 -I./include -DTEST=123 | tr '\n' ' ' | tr '\\' ' ' | perl -pe 's/.*://')
 	@mkdir -p `dirname $@`
 	@echo "Compile $<"
-	@$(CXX) -c -o $@ $< -std=c++11 -I./include -g -Ofast -Wall -Wextra
+	@$(CXX) -c -o $@ $< -std=c++11 -I./include -DTEST=123 -g -Ofast -Wall -Wextra
 libgensol: .output/libgensol.a
 .output/libgensol.a: libgensol/src/gensol.cpp.o
 	@mkdir -p `dirname $@`

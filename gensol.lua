@@ -69,6 +69,7 @@ node = node_load(arg[1], {
 	link = true,
 	depend = true,
 	include = true,
+	define = true,
 	library = true,
 	rpath = true,
 	source = true,
@@ -146,7 +147,7 @@ for _, target in pairs(node.target) do
 			Makefile:write(" -I"..expPath(dir.__value))
 		end
 		for _, mcr in ipairs(target.define or {}) do
-			Makefile:write(" -D"..mcr)
+			Makefile:write(" -D"..mcr.__value)
 		end
 		Makefile:write(" | tr '\\n' ' ' | tr '\\\\' ' ' | perl -pe 's/.*://')\n\t@mkdir -p `dirname $@`\n")
 		Makefile:write("\t@echo \"Compile $<\"\n")
@@ -161,7 +162,7 @@ for _, target in pairs(node.target) do
 			Makefile:write(" -I"..expPath(dir.__value))
 		end
 		for _, mcr in ipairs(target.define or {}) do
-			Makefile:write(" -D"..mcr)
+			Makefile:write(" -D"..mcr.__value)
 		end
 		if target.debug and target.debug.__value == "true" then
 			Makefile:write(" -g")
