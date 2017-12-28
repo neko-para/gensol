@@ -13,6 +13,7 @@ target libgensol
 	source @src/gensol.cpp
 target gensol
 	type excutable
+	default true
 	debug true
 	install
 		inst_bin .output/gensol

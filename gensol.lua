@@ -109,10 +109,16 @@ function expPath(str)
 	end
 end
 Makefile = io.open("Makefile", "w")
-Makefile:write("PREFIX=/usr/local\n")
+Makefile:write("PREFIX=/usr/local\ndefault:")
 objs = ""
 outs = ""
 insts = ""
+for _, target in pairs(node.target) do
+	if target.default and target.default.__value == "true" then
+		Makefile:write(" "..target.__value)
+	end
+end
+Makefile:write("\n")
 for _, target in pairs(node.target) do
 	local target_name = target.__value
 	local objlst = ""
