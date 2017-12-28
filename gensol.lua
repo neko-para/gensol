@@ -109,10 +109,16 @@ function expPath(str)
 	end
 end
 Makefile = io.open("Makefile", "w")
-Makefile:write("PREFIX=/usr/local\ndefault:")
+Makefile:write("PREFIX=/usr/local\n")
+for k, v in pairs(node.var) do
+	if k ~= "__key" and k ~= "__value" then
+		Makefile:write(string.format("%s=%s\n", k, v.__value))
+	end
+end
 objs = ""
 outs = ""
 insts = ""
+Makefile:write("default:")
 for _, target in pairs(node.target) do
 	if target.default and target.default.__value == "true" then
 		Makefile:write(" "..target.__value)
@@ -139,6 +145,9 @@ for _, target in pairs(node.target) do
 		for _, dir in ipairs(target.include or {}) do
 			Makefile:write(" -I"..expPath(dir.__value))
 		end
+		for _, mcr in ipairs(target.define or {}) do
+			Makefile:write(" -D"..mcr)
+		end
 		Makefile:write(" | tr '\\n' ' ' | tr '\\\\' ' ' | perl -pe 's/.*://')\n\t@mkdir -p `dirname $@`\n")
 		Makefile:write("\t@echo \"Compile $<\"\n")
 		Makefile:write(string.format("\t@%s -c -o $@ $<", expect_compiler[getExt(src)]))
@@ -150,6 +159,9 @@ for _, target in pairs(node.target) do
 		end
 		for _, dir in ipairs(target.include or {}) do
 			Makefile:write(" -I"..expPath(dir.__value))
+		end
+		for _, mcr in ipairs(target.define or {}) do
+			Makefile:write(" -D"..mcr)
 		end
 		if target.debug and target.debug.__value == "true" then
 			Makefile:write(" -g")

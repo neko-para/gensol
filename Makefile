@@ -1,4 +1,5 @@
 PREFIX=/usr/local
+INST_PREFIX=/usr/local
 default: gensol
 libgensol/src/gensol.cpp.o: $(shell $(CXX) -MM ./src/gensol.cpp -std=c++11 -I./include | tr '\n' ' ' | tr '\\' ' ' | perl -pe 's/.*://')
 	@mkdir -p `dirname $@`

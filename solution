@@ -1,4 +1,6 @@
 lang c++
+var
+	INST_PREFIX /usr/local
 target libgensol
 	type archive
 	debug true
