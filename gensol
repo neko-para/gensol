@@ -1,6 +1,6 @@
 #!/bin/sh
-SRC_DIR=/usr/local/share/gensol;
-SOL_DIR="./";
+SRC_DIR=/usr/local/share/gensol
+SOL_DIR=".";
 if [ -n "$1" ]; then
 	if [ -d "$1" ]; then
 		SOL_FILE="$1";

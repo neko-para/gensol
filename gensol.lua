@@ -74,7 +74,7 @@ function getExt(str)
 	local _, _, suf = string.find(str, ".*%.(%w+)")
 	return suf
 end
-function expPath(str, src, out)
+function expPath(str, src)
 	if string.sub(str, 1, 1) == "@" then
 		return src..string.sub(str, 2), string.sub(str, 2)
 	elseif string.sub(str, 1, 1) == "!" then
@@ -89,8 +89,9 @@ objs = ""
 outs = ""
 insts = ""
 function main(src_dir, have_default)
-	node = node_load(src_dir.."solution", {
+	local node = node_load(src_dir.."solution", {
 		target = true,
+		default = true,
 		link = true,
 		depend = true,
 		include = true,
@@ -116,7 +117,7 @@ function main(src_dir, have_default)
 	end
 	if (have_default) then
 		Makefile:write("default:")
-		for _, target in pairs(node.target) do
+		for _, target in pairs(node.target or {}) do
 			if target.default and target.default.__value == "true" then
 				Makefile:write(" "..target.__value)
 			end
@@ -131,7 +132,7 @@ function main(src_dir, have_default)
 			main(subdir)
 		end
 	end
-	for _, target in pairs(node.target) do
+	for _, target in pairs(node.target or {}) do
 		local target_name = target.__value
 		local objlst = ""
 		for _, source in ipairs(target.source or {}) do

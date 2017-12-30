@@ -8,15 +8,18 @@ if [ -n "$path" ]; then
 fi
 echo > gensol "#!/bin/sh"
 echo >> gensol "SRC_DIR=$PREFIX/share/gensol"
-echo >> gensol "SOL_FILE=\"solution\";"
-echo >> gensol "if [ -n \"\$1\" ]; then"
-echo >> gensol "\tif [ -d \"\$1\" ]; then"
-echo >> gensol "\t\tSOL_FILE=\"\$1/solution\";"
-echo >> gensol "\telse"
-echo >> gensol "\t\tSOL_FILE=\"\$1\";"
-echo >> gensol "\tfi"
-echo >> gensol "fi"
-echo >> gensol "exec lua \$SRC_DIR/gensol.lua \"\$SOL_FILE\" \"\`dirname \$SOL_FILE\`/\""
+cat >> gensol << "EOF"
+SOL_DIR=".";
+if [ -n "$1" ]; then
+	if [ -d "$1" ]; then
+		SOL_FILE="$1";
+	else
+		echo >&2 "$1 is not a directory";
+		exit 1;
+	fi
+fi
+exec lua $SRC_DIR/gensol.lua "$SOL_DIR/"
+EOF
 sudo mkdir -p "$PREFIX/bin"
 sudo install -m 0755 gensol "$PREFIX/bin/gensol"
 sudo mkdir -p "$PREFIX/share/gensol"
