@@ -1,31 +1,17 @@
 lang c++
-var
-	INST_PREFIX /usr/local
-target libgensol
-	type archive
-	debug true
-	install
-		inst_inc @include/gensol.h
-		inst_lib .output/libgensol.a
-	optimize fast
-	std c++11
-	warning all
-	warning extra
-	include @include
-	source @src/gensol.cpp
-	define TEST=123
+std c++11
+optimize fast
+subdir @src
 target gensol
 	type excutable
 	default true
 	debug true
 	install
-		inst_bin .output/gensol
+		inst_bin !gensol/gensol
 	depend libgensol
-	optimize fast
-	std c++11
 	warning all
 	warning extra
-	library .output
+	library !libgensol
 	link gensol
 	include @include
 	source @src/main.cpp

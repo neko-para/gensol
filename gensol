@@ -1,11 +1,12 @@
 #!/bin/sh
-SRC_DIR=/usr/local/share/gensol
-SOL_FILE="solution";
+SRC_DIR=/usr/local/share/gensol;
+SOL_DIR="./";
 if [ -n "$1" ]; then
 	if [ -d "$1" ]; then
-		SOL_FILE="$1/solution";
-	else
 		SOL_FILE="$1";
+	else
+		echo >&2 "$1 is not a directory";
+		exit 1;
 	fi
 fi
-exec lua $SRC_DIR/gensol.lua "$SOL_FILE" "`dirname $SOL_FILE`/"
+exec lua $SRC_DIR/gensol.lua "$SOL_DIR/"

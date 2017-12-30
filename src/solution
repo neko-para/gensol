@@ -1,0 +1,13 @@
+lang c++
+std c++11
+optimize fast
+target libgensol
+	type archive
+	debug true
+	install
+		inst_inc @include/gensol.h
+		inst_lib !libgensol/libgensol.a
+	warning all
+	warning extra
+	include @include
+	source @src/gensol.cpp
