@@ -143,6 +143,9 @@ function main(src_dir, have_default)
 			if target.std then
 				Makefile:write(" -std="..target.std.__value)
 			end
+			if target.bit then
+				Makefile:write(" -m"..target.bit.__value)
+			end
 			for _, dir in ipairs(target.include or {}) do
 				Makefile:write(" -I"..expPath(dir.__value, src_dir))
 			end
@@ -157,6 +160,9 @@ function main(src_dir, have_default)
 			end
 			if target.std then
 				Makefile:write(" -std="..target.std.__value)
+			end
+			if target.bit then
+				Makefile:write(" -m"..target.bit.__value)
 			end
 			for _, dir in ipairs(target.include or {}) do
 				Makefile:write(" -I"..expPath(dir.__value, src_dir))
@@ -191,6 +197,9 @@ function main(src_dir, have_default)
 			Makefile:write("\t@"..compilers[target.lang.__value].." -o $@")
 			if target.type.__value == "library" then
 				Makefile:write(" -shared")
+			end
+			if target.bit then
+				Makefile:write(" -m"..target.bit.__value)
 			end
 			Makefile:write(objlst)
 			for _, dir in ipairs(target.library or {}) do
