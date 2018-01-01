@@ -91,7 +91,6 @@ insts = ""
 function main(src_dir, have_default)
 	local node = node_load(src_dir.."solution", {
 		target = true,
-		default = true,
 		link = true,
 		depend = true,
 		include = true,
@@ -135,87 +134,96 @@ function main(src_dir, have_default)
 	for _, target in pairs(node.target or {}) do
 		local target_name = target.__value
 		local objlst = ""
-		for _, source in ipairs(target.source or {}) do
-			local src, obj = expPath(source.__value, src_dir)
-			obj = target_name.."/"..obj..".o"
-			objlst = objlst.." "..obj
-			Makefile:write(string.format("%s: $(shell %s -MM %s", obj, expect_compiler[getExt(src)], src))
-			if target.std then
-				Makefile:write(" -std="..target.std.__value)
+		if target.type.__value == "phony" then
+			Makefile:write(target_name..":")
+			for _, depend_target in ipairs(target.depend or {}) do
+				Makefile:write(" "..depend_target.__value)
 			end
-			if target.bit then
-				Makefile:write(" -m"..target.bit.__value)
-			end
-			for _, dir in ipairs(target.include or {}) do
-				Makefile:write(" -I"..expPath(dir.__value, src_dir))
-			end
-			for _, mcr in ipairs(target.define or {}) do
-				Makefile:write(" -D"..mcr.__value)
-			end
-			Makefile:write(" | tr '\\n' ' ' | tr '\\\\' ' ' | perl -pe 's/.*://')\n\t@mkdir -p `dirname $@`\n")
-			Makefile:write("\t@echo \"Compile $<\"\n")
-			Makefile:write(string.format("\t@%s -c -o $@ $<", expect_compiler[getExt(src)]))
-			if target.type.__value == "library" then
-				Makefile:write(" -fPIC")
-			end
-			if target.std then
-				Makefile:write(" -std="..target.std.__value)
-			end
-			if target.bit then
-				Makefile:write(" -m"..target.bit.__value)
-			end
-			for _, dir in ipairs(target.include or {}) do
-				Makefile:write(" -I"..expPath(dir.__value, src_dir))
-			end
-			for _, mcr in ipairs(target.define or {}) do
-				Makefile:write(" -D"..mcr.__value)
-			end
-			if target.debug and target.debug.__value == "true" then
-				Makefile:write(" -g")
-			end
-			if target.optimize then
-				Makefile:write(" -O"..target.optimize.__value)
-			end
-			for _, warn in ipairs(target.warning or {}) do
-				Makefile:write(" -W"..warn.__value)
-			end
-			Makefile:write("\n")
-		end
-		local outfile = target_name..suffixs[target.type.__value]
-		local output = ".output/"..target_name.."/"..outfile
-		outs = outs.." "..output
-		objs = objs..objlst
-		Makefile:write(string.format([[%s: %s
-%s:]], target_name, output, output))
-		for _, depend_target in ipairs(target.depend or {}) do
-			Makefile:write(" "..depend_target.__value)
-		end
-		Makefile:write(objlst.."\n\t@mkdir -p `dirname $@`\n\t@echo \"Link $@\"\n")
-		if target.type.__value == "archive" then
-			Makefile:write("\t@$(AR) rc $@"..objlst)
+			Makefile:write("\n.PHONY: "..target_name)
 		else
-			Makefile:write("\t@"..compilers[target.lang.__value].." -o $@")
-			if target.type.__value == "library" then
-				Makefile:write(" -shared")
+			for _, source in ipairs(target.source or {}) do
+				local src, obj = expPath(source.__value, src_dir)
+				obj = target_name.."/"..obj..".o"
+				objlst = objlst.." "..obj
+				Makefile:write(string.format("%s: $(shell %s -MM %s", obj, expect_compiler[getExt(src)], src))
+				if target.std then
+					Makefile:write(" -std="..target.std.__value)
+				end
+				if target.bit then
+					Makefile:write(" -m"..target.bit.__value)
+				end
+				for _, dir in ipairs(target.include or {}) do
+					Makefile:write(" -I"..expPath(dir.__value, src_dir))
+				end
+				for _, mcr in ipairs(target.define or {}) do
+					Makefile:write(" -D"..mcr.__value)
+				end
+				Makefile:write(" | tr '\\n' ' ' | tr '\\\\' ' ' | perl -pe 's/.*://')\n\t@mkdir -p `dirname $@`\n")
+				Makefile:write("\t@echo \"Compile $<\"\n")
+				Makefile:write(string.format("\t@%s -c -o $@ $<", expect_compiler[getExt(src)]))
+				if target.type.__value == "library" then
+					Makefile:write(" -fPIC")
+				end
+				if target.std then
+					Makefile:write(" -std="..target.std.__value)
+				end
+				if target.bit then
+					Makefile:write(" -m"..target.bit.__value)
+				end
+				for _, dir in ipairs(target.include or {}) do
+					Makefile:write(" -I"..expPath(dir.__value, src_dir))
+				end
+				for _, mcr in ipairs(target.define or {}) do
+					Makefile:write(" -D"..mcr.__value)
+				end
+				if target.debug and target.debug.__value == "true" then
+					Makefile:write(" -g")
+				end
+				if target.optimize then
+					Makefile:write(" -O"..target.optimize.__value)
+				end
+				for _, warn in ipairs(target.warning or {}) do
+					Makefile:write(" -W"..warn.__value)
+				end
+				Makefile:write("\n")
 			end
-			if target.bit then
-				Makefile:write(" -m"..target.bit.__value)
+			target.lang = target.lang or { __value = "c++" }
+			local outfile = target_name..suffixs[target.type.__value]
+			local output = ".output/"..target_name.."/"..outfile
+			outs = outs.." "..output
+			objs = objs..objlst
+			Makefile:write(string.format([[%s: %s
+%s:]], target_name, output, output))
+			for _, depend_target in ipairs(target.depend or {}) do
+				Makefile:write(" "..depend_target.__value)
 			end
-			Makefile:write(objlst)
-			for _, dir in ipairs(target.library or {}) do
-				Makefile:write(" -L"..expPath(dir.__value, src_dir))
-			end
-			for _, lib in ipairs(target.link or {}) do
-				Makefile:write(" -l"..lib.__value)
-			end
-			for _, path in ipairs(target.rpath or {}) do
-				Makefile:write(" -Wl,--rpath="..path.__value)
-			end
-			if target.debug and target.debug.__value == "true" then
-				Makefile:write(" -g")
-			end
-			if target.optimize then
-				Makefile:write(" -O"..target.optimize.__value)
+			Makefile:write(objlst.."\n\t@mkdir -p `dirname $@`\n\t@echo \"Link $@\"\n")
+			if target.type.__value == "archive" then
+				Makefile:write("\t@$(AR) rc $@"..objlst)
+			else
+				Makefile:write("\t@"..compilers[target.lang.__value].." -o $@")
+				if target.type.__value == "library" then
+					Makefile:write(" -shared")
+				end
+				if target.bit then
+					Makefile:write(" -m"..target.bit.__value)
+				end
+				Makefile:write(objlst)
+				for _, dir in ipairs(target.library or {}) do
+					Makefile:write(" -L"..expPath(dir.__value, src_dir))
+				end
+				for _, lib in ipairs(target.link or {}) do
+					Makefile:write(" -l"..lib.__value)
+				end
+				for _, path in ipairs(target.rpath or {}) do
+					Makefile:write(" -Wl,--rpath="..path.__value)
+				end
+				if target.debug and target.debug.__value == "true" then
+					Makefile:write(" -g")
+				end
+				if target.optimize then
+					Makefile:write(" -O"..target.optimize.__value)
+				end
 			end
 		end
 		Makefile:write("\n")
