@@ -1,5 +1,5 @@
 PREFIX=/usr/local
-default:
+default: gensol
 libgensol/src/gensol.cpp.o: $(shell $(CXX) -MM ./src/src/gensol.cpp -std=c++11 -I./src/include | tr '\n' ' ' | tr '\\' ' ' | perl -pe 's/.*://')
 	@mkdir -p `dirname $@`
 	@echo "Compile $<"

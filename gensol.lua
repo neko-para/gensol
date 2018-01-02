@@ -78,7 +78,7 @@ function expPath(str, src)
 	if string.sub(str, 1, 1) == "@" then
 		return src..string.sub(str, 2), string.sub(str, 2)
 	elseif string.sub(str, 1, 1) == "!" then
-		return ".output"..string.sub(str, 2), string.sub(str, 2)
+		return ".output/"..string.sub(str, 2), string.sub(str, 2)
 	else
 		return str, str
 	end
