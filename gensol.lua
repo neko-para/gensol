@@ -143,7 +143,7 @@ function main(src_dir, have_default)
 		else
 			for _, source in ipairs(target.source or {}) do
 				local src, obj = expPath(source.__value, src_dir)
-				obj = target_name.."/"..obj..".o"
+				obj = "build."..target_name.."/"..obj..".o"
 				objlst = objlst.." "..obj
 				Makefile:write(string.format("%s: $(shell %s -MM %s", obj, expect_compiler[getExt(src)], src))
 				if target.std then
@@ -193,7 +193,8 @@ function main(src_dir, have_default)
 			outs = outs.." "..output
 			objs = objs..objlst
 			Makefile:write(string.format([[%s: %s
-%s:]], target_name, output, output))
+.PHONY: %s
+%s:]], target_name, output, target_name, output))
 			for _, depend_target in ipairs(target.depend or {}) do
 				Makefile:write(" "..depend_target.__value)
 			end
@@ -271,6 +272,7 @@ function main(src_dir, have_default)
 ]], p, p, target_name, p))
 				end
 			end
+			Makefile:write(".PHONY: install."..target_name.."\n")
 		end
 	end
 end
@@ -290,6 +292,7 @@ Makefile:write([[
 viewcompiler:
 	@echo "c compiler: $(CC)"
 	@echo "c++ compiler: $(CXX)"
+	@echo "assembly compiler: $(AS)"
 	@echo "archive linker: $(AR)"
 .PHONY: viewcompiler
 ]])
