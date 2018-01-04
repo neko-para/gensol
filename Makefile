@@ -1,7 +1,7 @@
 PREFIX=/usr/local
 MAKEFLAGS+=-s
 default: gensol
-build.libgensol/src/gensol.cpp.o: $(shell $(CXX) -MM ./src/src/gensol.cpp -std=c++11 -I./src/include | tr '\n' ' ' | tr '\\' ' ' | perl -pe 's/.*://')
+build.libgensol/src/gensol.cpp.o: $(shell echo -n `echo >&2 "Preparing dependence of ./src/src/gensol.cpp" && $(CXX) -MM ./src/src/gensol.cpp -std=c++11 -I./src/include 2>> gensol.log || echo >&2 "Error! see gensol.log for more details"` | tr '\n' ' ' | tr '\\' ' ' | perl -pe 's/.*://' )
 	mkdir -p `dirname $@`
 	echo "Compile $<"
 	$(CXX) -c -o $@ $< -std=c++11 -I./src/include -g -Ofast -Wall -Wextra
@@ -19,7 +19,7 @@ install.libgensol: libgensol
 	echo "Install .output/libgensol/libgensol.a"
 	install -m 0644 .output/libgensol/libgensol.a $(PREFIX)/lib/`basename .output/libgensol/libgensol.a`
 .PHONY: install.libgensol
-build.gensol/src/main.cpp.o: $(shell $(CXX) -MM ./src/main.cpp -std=c++11 -I./include | tr '\n' ' ' | tr '\\' ' ' | perl -pe 's/.*://')
+build.gensol/src/main.cpp.o: $(shell echo -n `echo >&2 "Preparing dependence of ./src/main.cpp" && $(CXX) -MM ./src/main.cpp -std=c++11 -I./include 2>> gensol.log || echo >&2 "Error! see gensol.log for more details"` | tr '\n' ' ' | tr '\\' ' ' | perl -pe 's/.*://' )
 	mkdir -p `dirname $@`
 	echo "Compile $<"
 	$(CXX) -c -o $@ $< -std=c++11 -I./include -g -Ofast -Wall -Wextra

@@ -150,7 +150,7 @@ function main(src_dir, have_default)
 				obj = "build."..target_name.."/"..obj..".o"
 				print("object: "..obj.."\n\tsource: "..src)
 				objlst = objlst.." "..obj
-				Makefile:write(string.format("%s: $(shell %s -MM %s", obj, expect_compiler[getExt(src)], src))
+				Makefile:write(string.format("%s: $(shell echo -n `echo >&2 \"Preparing dependence of %s\" && %s -MM %s", obj, src, expect_compiler[getExt(src)], src))
 				if target.std then
 					Makefile:write(" -std="..target.std.__value)
 				end
@@ -163,7 +163,7 @@ function main(src_dir, have_default)
 				for _, mcr in ipairs(target.define or {}) do
 					Makefile:write(" -D"..mcr.__value)
 				end
-				Makefile:write(" | tr '\\n' ' ' | tr '\\\\' ' ' | perl -pe 's/.*://')\n\tmkdir -p `dirname $@`\n")
+				Makefile:write(" 2>> gensol.log || echo >&2 \"Error! see gensol.log for more details\"` | tr '\\n' ' ' | tr '\\\\' ' ' | perl -pe 's/.*://' )\n\tmkdir -p `dirname $@`\n")
 				Makefile:write("\techo \"Compile $<\"\n")
 				Makefile:write(string.format("\t%s -c -o $@ $<", expect_compiler[getExt(src)]))
 				if target.type.__value == "library" then
