@@ -1,5 +1,5 @@
 local function div(str)
-	local _, _, tab, key, value = string.find(str, "(\t*)([^%s]+)%s+([^%s]+)%s*")
+	local _, _, tab, key, value = string.find(str, "(\t*)([^%s]+)%s+(.+)%s*")
 	if not key then
 		_, _, tab, key = string.find(str, "(\t*)([^%s]+)%s*")
 	end
@@ -58,17 +58,31 @@ end
 suffixs = {
 	excutable = "",
 	library = ".so",
-	archive = ".a"
+	archive = ".a",
+	custom = "",
 }
 compilers = {}
 compilers["c"] = "$(CC)"
 compilers["c++"] = "$(CXX)"
+compilers["att"] = "$(AS)"
+compilers["intel"] = "nasm"
+expect_lang = {
+	c = "c",
+	cpp = "c++",
+	cc = "c++",
+	cxx = "c++",
+	C = "c++",
+	asm = "intel",
+	s = "att"
+}
 expect_compiler = {
-	c = "$(CC)",
-	cpp = "$(CXX)",
-	cc = "$(CXX)",
-	cxx = "$(CXX)",
-	C = "$(CXX)"
+	c = compilers["c"],
+	cpp = compilers["c++"],
+	cc = compilers["c++"],
+	cxx = compilers["c++"],
+	C = compilers["c++"],
+	asm = compilers["intel"],
+	s = compilers["att"]
 }
 function getExt(str)
 	local _, _, suf = string.find(str, ".*%.(%w+)")
@@ -150,45 +164,66 @@ function main(src_dir, have_default)
 				obj = "build."..target_name.."/"..obj..".o"
 				print("object: "..obj.."\n\tsource: "..src)
 				objlst = objlst.." "..obj
-				Makefile:write(string.format("%s: $(shell echo -n `echo >&2 \"Preparing dependence of %s\" && %s -MM %s", obj, src, expect_compiler[getExt(src)], src))
-				if target.std then
-					Makefile:write(" -std="..target.std.__value)
+				local ext = getExt(src)
+				local explang = expect_lang[ext]
+				if explang == "c" or explang == "c++" then
+					Makefile:write(string.format("%s: $(shell echo -n `echo >&2 \"Preparing dependence of %s\" && %s -MM %s", obj, src, expect_compiler[ext], src))
+					if target.std then
+						Makefile:write(" -std="..target.std.__value)
+					end
+					if target.bit then
+						Makefile:write(" -m"..target.bit.__value)
+					end
+					for _, dir in ipairs(target.include or {}) do
+						Makefile:write(" -I"..expPath(dir.__value, src_dir))
+					end
+					for _, mcr in ipairs(target.define or {}) do
+						Makefile:write(" -D"..mcr.__value)
+					end
+					Makefile:write(" 2>> gensol.log || echo >&2 \"Error! see gensol.log for more details\"` | tr '\\n' ' ' | tr '\\\\' ' ' | perl -pe 's/.*://' )")
+				else
+					Makefile:write(string.format("%s: %s", obj, src))
 				end
-				if target.bit then
-					Makefile:write(" -m"..target.bit.__value)
-				end
-				for _, dir in ipairs(target.include or {}) do
-					Makefile:write(" -I"..expPath(dir.__value, src_dir))
-				end
-				for _, mcr in ipairs(target.define or {}) do
-					Makefile:write(" -D"..mcr.__value)
-				end
-				Makefile:write(" 2>> gensol.log || echo >&2 \"Error! see gensol.log for more details\"` | tr '\\n' ' ' | tr '\\\\' ' ' | perl -pe 's/.*://' )\n\tmkdir -p `dirname $@`\n")
+				Makefile:write("\n\tmkdir -p `dirname $@`\n")
 				Makefile:write("\techo \"Compile $<\"\n")
-				Makefile:write(string.format("\t%s -c -o $@ $<", expect_compiler[getExt(src)]))
-				if target.type.__value == "library" then
-					Makefile:write(" -fPIC")
-				end
-				if target.std then
-					Makefile:write(" -std="..target.std.__value)
-				end
-				if target.bit then
-					Makefile:write(" -m"..target.bit.__value)
-				end
-				for _, dir in ipairs(target.include or {}) do
-					Makefile:write(" -I"..expPath(dir.__value, src_dir))
-				end
-				for _, mcr in ipairs(target.define or {}) do
-					Makefile:write(" -D"..mcr.__value)
-				end
-				if target.debug and target.debug.__value == "true" then
-					Makefile:write(" -g")
-				end
-				if target.optimize then
-					Makefile:write(" -O"..target.optimize.__value)
-				end
-				for _, warn in ipairs(target.warning or {}) do
-					Makefile:write(" -W"..warn.__value)
+				Makefile:write(string.format("\t%s -o $@ $<", expect_compiler[ext]))
+				if explang == "c" or explang == "c++" then
+					Makefile:write(" -c")
+					if target.type.__value == "library" or (target.pic and target.pic.__value == "true") then
+						Makefile:write(" -fPIC")
+					end
+					if target.std then
+						Makefile:write(" -std="..target.std.__value)
+					end
+					if target.bit then
+						Makefile:write(" -m"..target.bit.__value)
+					end
+					for _, dir in ipairs(target.include or {}) do
+						Makefile:write(" -I"..expPath(dir.__value, src_dir))
+					end
+					for _, mcr in ipairs(target.define or {}) do
+						Makefile:write(" -D"..mcr.__value)
+					end
+					if target.debug and target.debug.__value == "true" then
+						Makefile:write(" -g")
+					end
+					if target.optimize then
+						Makefile:write(" -O"..target.optimize.__value)
+					end
+					for _, warn in ipairs(target.warning or {}) do
+						Makefile:write(" -W"..warn.__value)
+					end
+				elseif explang == "att" then
+					if target.bit then
+						Makefile:write(" -"..target.bit.__value)
+					end
+				elseif explang == "intel" then
+					if target.bit then
+						Makefile:write(" -"..target.bit.__value)
+					end
+					if target.format then
+						Makefile:write(" -f "..target.format.__value)
+					end
 				end
 				Makefile:write("\n")
 			end
@@ -210,6 +245,10 @@ function main(src_dir, have_default)
 			print("\tobjects:"..objlst)
 			if target.type.__value == "archive" then
 				Makefile:write("\t$(AR) rc $@"..objlst)
+			elseif target.type.__value == "custom" then
+				Makefile:write(target.linkcmdpre.__value)
+				Makefile:write(objlst.." ")
+				Makefile:write(target.linkcmdend.__value)
 			else
 				Makefile:write("\t"..compilers[target.lang.__value].." -o $@")
 				if target.type.__value == "library" then

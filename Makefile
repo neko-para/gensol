@@ -4,7 +4,7 @@ default: gensol
 build.libgensol/src/gensol.cpp.o: $(shell echo -n `echo >&2 "Preparing dependence of ./src/src/gensol.cpp" && $(CXX) -MM ./src/src/gensol.cpp -std=c++11 -I./src/include 2>> gensol.log || echo >&2 "Error! see gensol.log for more details"` | tr '\n' ' ' | tr '\\' ' ' | perl -pe 's/.*://' )
 	mkdir -p `dirname $@`
 	echo "Compile $<"
-	$(CXX) -c -o $@ $< -std=c++11 -I./src/include -g -Ofast -Wall -Wextra
+	$(CXX) -o $@ $< -c -std=c++11 -I./src/include -g -Ofast -Wall -Wextra
 libgensol: .output/libgensol/libgensol.a
 .PHONY: libgensol
 .output/libgensol/libgensol.a: build.libgensol/src/gensol.cpp.o
@@ -22,7 +22,7 @@ install.libgensol: libgensol
 build.gensol/src/main.cpp.o: $(shell echo -n `echo >&2 "Preparing dependence of ./src/main.cpp" && $(CXX) -MM ./src/main.cpp -std=c++11 -I./include 2>> gensol.log || echo >&2 "Error! see gensol.log for more details"` | tr '\n' ' ' | tr '\\' ' ' | perl -pe 's/.*://' )
 	mkdir -p `dirname $@`
 	echo "Compile $<"
-	$(CXX) -c -o $@ $< -std=c++11 -I./include -g -Ofast -Wall -Wextra
+	$(CXX) -o $@ $< -c -std=c++11 -I./include -g -Ofast -Wall -Wextra
 gensol: .output/gensol/gensol
 .PHONY: gensol
 .output/gensol/gensol: libgensol build.gensol/src/main.cpp.o
