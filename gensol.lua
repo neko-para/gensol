@@ -107,6 +107,7 @@ objs = ""
 outs = ""
 insts = ""
 function main(src_dir, up)
+	print("parse "..src_dir.."solution")
 	local node = node_load(src_dir.."solution", {
 		target = true,
 		link = true,
@@ -136,7 +137,7 @@ function main(src_dir, up)
 	if (up) then
 		if node.toolprefix then
 			Makefile:write("TOOLPREFIX="..node.toolprefix.__value.."\n")
-			print("Set toolchain prefix "..node.toolprefix.__value)
+			print("set toolchain prefix "..node.toolprefix.__value)
 		else
 			Makefile:write("TOOLPREFIX=\n")
 		end
@@ -337,7 +338,7 @@ function main(src_dir, up)
 		end
 	end
 end
-main(arg[1], ".output/")
+main(arg[1], true)
 Makefile:write([[
 clean:
 	echo "Remove objects"

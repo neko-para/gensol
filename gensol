@@ -3,7 +3,7 @@ SRC_DIR=/usr/local/share/gensol
 SOL_DIR=".";
 if [ -n "$1" ]; then
 	if [ -d "$1" ]; then
-		SOL_FILE="$1";
+		SOL_DIR="$1";
 	else
 		echo >&2 "$1 is not a directory";
 		exit 1;
