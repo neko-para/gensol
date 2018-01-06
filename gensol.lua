@@ -65,7 +65,7 @@ compilers = {}
 compilers["c"] = "$(CC)"
 compilers["c++"] = "$(CXX)"
 compilers["att"] = "$(AS)"
-compilers["intel"] = "nasm"
+compilers["intel"] = "$(NASM)"
 expect_lang = {
 	c = "c",
 	cpp = "c++",
@@ -98,11 +98,15 @@ function expPath(str, src)
 	end
 end
 Makefile = io.open("Makefile", "w")
-Makefile:write("PREFIX=/usr/local\nMAKEFLAGS+=-s\n")
+Makefile:write([[
+PREFIX=/usr/local
+NASM=nasm
+MAKEFLAGS+=-s
+]])
 objs = ""
 outs = ""
 insts = ""
-function main(src_dir, have_default)
+function main(src_dir, up)
 	local node = node_load(src_dir.."solution", {
 		target = true,
 		link = true,
@@ -129,7 +133,16 @@ function main(src_dir, have_default)
 			print(string.format("var: %s=%s", k, v.__value))
 		end
 	end
-	if (have_default) then
+	if (up) then
+		if node.toolprefix then
+			Makefile:write("TOOLPREFIX="..node.toolprefix.__value.."\n")
+			print("Set toolchain prefix "..node.toolprefix.__value)
+		else
+			Makefile:write("TOOLPREFIX=\n")
+		end
+		for k, v in pairs({CC="gcc", CXX="g++", AS="as", AR="ar", LD="ld"}) do
+			Makefile:write(string.format("%s=$(TOOLPREFIX)%s\n", k, v))
+		end
 		Makefile:write("default:")
 		for _, target in pairs(node.target or {}) do
 			if target.default and target.default.__value == "true" then
@@ -340,7 +353,9 @@ Makefile:write([[
 viewcompiler:
 	echo "c compiler: $(CC)"
 	echo "c++ compiler: $(CXX)"
-	echo "assembly compiler: $(AS)"
+	echo "at&t assembly compiler: $(AS)"
+	echo "intel assembly compiler: $(NASM)"
 	echo "archive linker: $(AR)"
+	echo "linker: $(LD)"
 .PHONY: viewcompiler
 ]])
