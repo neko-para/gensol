@@ -20,7 +20,16 @@ if [ -n "$1" ]; then
 fi
 exec lua $SRC_DIR/gensol.lua "$SOL_DIR/"
 EOF
-sudo mkdir -p "$PREFIX/bin"
-sudo install -m 0755 gensol "$PREFIX/bin/gensol"
-sudo mkdir -p "$PREFIX/share/gensol"
-sudo install -m 0644 gensol.lua "$PREFIX/share/gensol/gensol.lua"
+SUDO=
+if [ ! -d $PREFIX/bin ]; then
+	if ! mkdir $PREFIX/bin 2> /dev/null; then
+		SUDO=sudo;
+	fi
+fi
+if ! install -m 0755 gensol "$PREFIX/bin/gensol"; then
+	SUDO=sudo;
+fi
+$SUDO mkdir -p "$PREFIX/bin"
+$SUDO install -m 0755 gensol "$PREFIX/bin/gensol"
+$SUDO mkdir -p "$PREFIX/share/gensol"
+$SUDO install -m 0644 gensol.lua "$PREFIX/share/gensol/gensol.lua"

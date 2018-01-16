@@ -2,11 +2,11 @@ PREFIX=/usr/local
 NASM=nasm
 MAKEFLAGS+=-s
 TOOLPREFIX=
-CC=$(TOOLPREFIX)gcc
+AR=$(TOOLPREFIX)ar
 AS=$(TOOLPREFIX)as
 LD=$(TOOLPREFIX)ld
+CC=$(TOOLPREFIX)gcc
 CXX=$(TOOLPREFIX)g++
-AR=$(TOOLPREFIX)ar
 default: gensol
 build.libgensol/src/gensol.cpp.o: $(shell echo -n `echo >&2 "Preparing dependence of ./src/src/gensol.cpp" && $(CXX) -MM ./src/src/gensol.cpp -std=c++11 -I./src/include 2>> gensol.log || echo >&2 "Error! see gensol.log for more details"` | tr '\n' ' ' | tr '\\' ' ' | perl -pe 's/.*://' )
 	mkdir -p `dirname $@`

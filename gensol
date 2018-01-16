@@ -1,5 +1,5 @@
 #!/bin/sh
-SRC_DIR=/usr/local/share/gensol
+SRC_DIR=/tmp/inst/share/gensol
 SOL_DIR=".";
 if [ -n "$1" ]; then
 	if [ -d "$1" ]; then
